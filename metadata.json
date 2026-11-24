@@ -1,0 +1,6 @@
+{
+  "name": "ポースリエ・リプキン機構 シミュレータ＆設計支援",
+  "description": "厳正直線リンク機構（ポースリエ・リプキン機構）のリアルタイム運動解析、目標ストロークからの逆算設計、および工作用SVG図面エクスポートを行えるインタラクティブWebアプリケーション。",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

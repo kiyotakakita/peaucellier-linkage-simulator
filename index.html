@@ -1,0 +1,2661 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ポースリエ・リプキン機構 シミュレータ＆設計支援</title>
+  <meta name="description" content="厳正直線リンク機構（ポースリエ・リプキン機構）のリアルタイム運動解析、目標ストロークからの逆算設計、および工作用SVG図面エクスポートを行えるインタラクティブWebアプリケーション。" />
+  <meta property="og:title" content="ポースリエ・リプキン機構 シミュレータ＆設計支援" />
+  <meta property="og:description" content="厳正直線リンク機構（ポースリエ・リプキン機構）のリアルタイム運動解析、目標ストロークからの逆算設計、および工作用SVG図面エクスポートを行えるインタラクティブWebアプリケーション。" />
+  <meta property="og:type" content="website" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <style>
+    :root {
+      --bg-canvas: #f8fafc;
+      --bg-surface: #ffffff;
+      --bg-subtle: #f1f5f9;
+      --bg-muted: #e2e8f0;
+      --border-hairline: #e2e8f0;
+      --border-strong: #cbd5e1;
+      --text-primary: #0f172a;
+      --text-secondary: #475569;
+      --text-muted: #64748b;
+      --accent: #2563eb;
+      --accent-hover: #1d4ed8;
+      --accent-soft: #eff6ff;
+      --link-L: #2563eb;
+      --link-s: #0d9488;
+      --link-r: #d97706;
+      --point-Q: #e11d48;
+      --nominal: #059669;
+      --nominal-bg: #ecfdf5;
+      --nominal-border: #a7f3d0;
+      --warn: #b45309;
+      --warn-bg: #fffbeb;
+      --warn-border: #fde68a;
+      --error: #dc2626;
+      --error-bg: #fef2f2;
+      --error-border: #fecaca;
+      --font-sans: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", system-ui, -apple-system, sans-serif;
+      --font-mono: "SFMono-Regular", "Consolas", "Liberation Mono", "Menlo", monospace;
+      --radius-sm: 6px;
+      --radius-md: 8px;
+      --radius-lg: 10px;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: var(--bg-canvas);
+      color: var(--text-primary);
+      font-family: var(--font-sans);
+      font-size: 14px;
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    .mono {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+    }
+
+    button, input, select {
+      font-family: inherit;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
+    /* App Shell */
+    .app-shell {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      min-height: 600px;
+      overflow: hidden;
+    }
+
+    /* Top Header: 1-row clean engineering header */
+    .top-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 0 20px;
+      height: 54px;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-hairline);
+      flex-shrink: 0;
+    }
+
+    .brand-title {
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      margin: 0;
+    }
+
+    .header-meta {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 12px;
+      color: var(--text-secondary);
+      white-space: nowrap;
+    }
+
+    .header-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-height: 36px;
+      padding: 6px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      line-height: 1;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border-strong);
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+                  border-color 150ms cubic-bezier(0.16, 1, 0.3, 1),
+                  color 150ms cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    .btn:hover:not(:disabled) {
+      background-color: var(--bg-subtle);
+      border-color: #94a3b8;
+    }
+
+    .btn:disabled {
+      opacity: 0.45;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      color: #ffffff;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+      border-color: var(--accent-hover);
+    }
+
+    .btn-sm {
+      min-height: 32px;
+      padding: 5px 10px;
+      font-size: 12px;
+    }
+
+    .btn-icon {
+      min-width: 34px;
+      min-height: 34px;
+      padding: 0 8px;
+    }
+
+    .btn.is-active {
+      background-color: var(--accent-soft);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+
+    /* Main 2-Pane Workspace */
+    .workspace {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    /* Left Control Panel */
+    .control-panel {
+      width: 396px;
+      flex-shrink: 0;
+      background-color: var(--bg-surface);
+      border-right: 1px solid var(--border-hairline);
+      overflow-y: auto;
+      padding: 16px 18px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .panel-section {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      padding-bottom: 16px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .panel-section:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .section-heading {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin: 0;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text-primary);
+    }
+
+    .section-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 400;
+    }
+
+    /* Status Alert Banner (non-hue-only: icon + label + message) */
+    .status-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid var(--nominal-border);
+      background-color: var(--nominal-bg);
+      color: var(--nominal);
+      font-size: 12.5px;
+      line-height: 1.45;
+    }
+
+    .status-banner.is-warn {
+      border-color: var(--warn-border);
+      background-color: var(--warn-bg);
+      color: var(--warn);
+    }
+
+    .status-banner.is-error {
+      border-color: var(--error-border);
+      background-color: var(--error-bg);
+      color: var(--error);
+    }
+
+    .status-glyph {
+      font-size: 14px;
+      line-height: 1.3;
+      flex-shrink: 0;
+      font-weight: 700;
+    }
+
+    .status-title {
+      font-weight: 700;
+      display: block;
+      margin-bottom: 2px;
+    }
+
+    /* Segmented Mode Tabs */
+    .segmented-tabs {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 4px;
+      padding: 4px;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-md);
+    }
+
+    .tab-btn {
+      min-height: 36px;
+      padding: 6px 10px;
+      border: none;
+      border-radius: var(--radius-sm);
+      background: transparent;
+      color: var(--text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 150ms, color 150ms;
+    }
+
+    .tab-btn.is-active {
+      background-color: var(--bg-surface);
+      color: var(--accent);
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    /* Presets Grid */
+    .preset-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+    }
+
+    .preset-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 2px;
+      padding: 8px 10px;
+      min-height: 44px;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-subtle);
+      color: var(--text-primary);
+      cursor: pointer;
+      text-align: left;
+      transition: border-color 150ms, background-color 150ms;
+    }
+
+    .preset-btn:hover {
+      background-color: #e9eff7;
+      border-color: var(--border-strong);
+    }
+
+    .preset-btn.is-active {
+      background-color: var(--accent-soft);
+      border-color: var(--accent);
+    }
+
+    .preset-name {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .preset-spec {
+      font-size: 11px;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      white-space: nowrap;
+    }
+
+    /* Parameter Control Rows */
+    .param-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .param-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    .param-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .color-swatch {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+      flex-shrink: 0;
+    }
+
+    .param-input-wrap {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .num-input {
+      width: 96px;
+      height: 32px;
+      padding: 4px 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+      text-align: right;
+    }
+
+    .num-input:disabled {
+      background-color: var(--bg-subtle);
+      color: var(--text-secondary);
+      cursor: default;
+    }
+
+    .range-slider {
+      width: 100%;
+      height: 24px;
+      accent-color: var(--accent);
+      cursor: pointer;
+      margin: 0;
+    }
+
+    .param-hint {
+      font-size: 11.5px;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+      gap: 8px;
+    }
+
+    /* Computed Readout Box (Inverse Mode) */
+    .computed-box {
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .computed-row {
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+      font-size: 12.5px;
+    }
+
+    .computed-val {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--accent);
+    }
+
+    /* Telemetry / Verification Grid */
+    .metrics-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+    }
+
+    .metric-cell {
+      padding: 8px 10px;
+      background-color: var(--bg-subtle);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+
+    .metric-cell.is-wide {
+      grid-column: span 2;
+    }
+
+    .metric-label {
+      font-size: 11px;
+      color: var(--text-muted);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric-value {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text-primary);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .metric-sub {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 11px;
+      color: var(--text-secondary);
+    }
+
+    .metric-value.is-warn {
+      color: var(--warn);
+    }
+
+    .metric-value.is-error {
+      color: var(--error);
+    }
+
+    .metric-value.is-nominal {
+      color: var(--nominal);
+    }
+
+    /* SVG Export Inputs */
+    .export-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+
+    .export-field {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .export-field label {
+      font-size: 11px;
+      color: var(--text-secondary);
+      font-weight: 600;
+      white-space: nowrap;
+    }
+
+    .export-field input {
+      width: 100%;
+      height: 32px;
+      padding: 4px 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 12.5px;
+      text-align: right;
+    }
+
+    .export-actions {
+      display: flex;
+      gap: 8px;
+    }
+
+    .export-actions .btn {
+      flex: 1;
+    }
+
+    /* Right Simulation Canvas Stage */
+    .stage-pane {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      background-color: var(--bg-canvas);
+      position: relative;
+    }
+
+    /* Stage Top Toolbar */
+    .stage-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 8px 14px;
+      background-color: var(--bg-surface);
+      border-bottom: 1px solid var(--border-hairline);
+      flex-wrap: wrap;
+    }
+
+    .toolbar-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+
+    .toggle-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      min-height: 32px;
+      padding: 4px 10px;
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-subtle);
+      color: var(--text-secondary);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      transition: background-color 150ms, border-color 150ms, color 150ms;
+    }
+
+    .toggle-chip.is-on {
+      background-color: var(--accent-soft);
+      border-color: #93c5fd;
+      color: var(--accent);
+    }
+
+    /* Canvas Container */
+    .canvas-wrap {
+      flex: 1;
+      position: relative;
+      min-height: 280px;
+      overflow: hidden;
+      background-color: var(--bg-canvas);
+    }
+
+    #simCanvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+      cursor: crosshair;
+      touch-action: none;
+    }
+
+    /* Corner Coordinate & Legend HUD */
+    .canvas-hud-tl {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      pointer-events: none;
+    }
+
+    .hud-panel {
+      background-color: rgba(255, 255, 255, 0.92);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-sm);
+      padding: 6px 10px;
+      font-size: 11.5px;
+      color: var(--text-secondary);
+      backdrop-filter: blur(4px);
+    }
+
+    .legend-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .legend-item {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      white-space: nowrap;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .legend-line {
+      width: 14px;
+      height: 3px;
+      border-radius: 2px;
+    }
+
+    .canvas-hud-tr {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      pointer-events: none;
+      text-align: right;
+    }
+
+    .canvas-hud-bl {
+      position: absolute;
+      bottom: 12px;
+      left: 12px;
+      pointer-events: none;
+    }
+
+    /* Playback Bar docked below canvas */
+    .playback-bar {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 10px 16px;
+      background-color: var(--bg-surface);
+      border-top: 1px solid var(--border-hairline);
+      flex-wrap: wrap;
+    }
+
+    .playback-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .angle-control {
+      flex: 1;
+      min-width: 200px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .angle-label {
+      font-size: 12.5px;
+      font-weight: 600;
+      color: var(--text-primary);
+      white-space: nowrap;
+    }
+
+    .angle-readout {
+      font-family: var(--font-mono);
+      font-variant-numeric: tabular-nums;
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      min-width: 118px;
+      text-align: right;
+      white-space: nowrap;
+    }
+
+    .speed-select {
+      height: 34px;
+      padding: 0 8px;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      background-color: var(--bg-surface);
+      color: var(--text-primary);
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    /* Modal for SVG Cut-Sheet Preview */
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(15, 23, 42, 0.48);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      z-index: 50;
+    }
+
+    .modal-backdrop.is-open {
+      display: flex;
+    }
+
+    .modal-card {
+      width: 100%;
+      max-width: 820px;
+      max-height: 90vh;
+      background-color: var(--bg-surface);
+      border: 1px solid var(--border-hairline);
+      border-radius: var(--radius-lg);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 18px;
+      border-bottom: 1px solid var(--border-hairline);
+    }
+
+    .modal-title {
+      margin: 0;
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .modal-body {
+      padding: 16px 18px;
+      overflow: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background-color: var(--bg-subtle);
+    }
+
+    .svg-preview-box {
+      background-color: #ffffff;
+      border: 1px solid var(--border-strong);
+      border-radius: var(--radius-sm);
+      padding: 12px;
+      overflow: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    .svg-preview-box svg {
+      max-width: 100%;
+      height: auto;
+      max-height: 55vh;
+    }
+
+    .modal-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 12px 18px;
+      border-top: 1px solid var(--border-hairline);
+      background-color: var(--bg-surface);
+      flex-wrap: wrap;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    /* Responsive: Mobile / Tablet */
+    @media (max-width: 960px) {
+      .app-shell {
+        height: auto;
+        min-height: 100vh;
+        overflow: visible;
+      }
+
+      .top-header {
+        padding: 0 14px;
+        gap: 10px;
+      }
+
+      .header-meta {
+        display: none;
+      }
+
+      .workspace {
+        flex-direction: column-reverse;
+        overflow: visible;
+      }
+
+      .stage-pane {
+        min-height: 460px;
+      }
+
+      .canvas-wrap {
+        min-height: 340px;
+        height: 52vh;
+      }
+
+      .control-panel {
+        width: 100%;
+        border-right: none;
+        border-top: 1px solid var(--border-hairline);
+        overflow-y: visible;
+      }
+
+      .btn, .tab-btn, .preset-btn, .toggle-chip {
+        min-height: 40px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top Header -->
+    <header class="top-header">
+      <h1 class="brand-title">ポースリエ・リプキン機構 シミュレータ＆設計支援</h1>
+      <div class="header-meta mono" aria-hidden="true">
+        <span>O=(0,0) · O'=(r,0)</span>
+        <span>|OP|·|OQ| = L² - s²</span>
+      </div>
+      <div class="header-actions">
+        <button type="button" id="btnDownloadHtml" class="btn btn-sm" title="現在のアプリを単一HTMLファイルとして保存">
+          単一HTML保存
+        </button>
+        <button type="button" id="btnOpenSvgModal" class="btn btn-primary btn-sm">
+          SVG図面出力
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="workspace">
+      <!-- Left Control Panel -->
+      <aside class="control-panel" aria-label="パラメータ設計と解析パネル">
+        <!-- Validation / Status Banner -->
+        <div id="statusBanner" class="status-banner" role="status" aria-live="polite">
+          <span id="statusGlyph" class="status-glyph" aria-hidden="true">●</span>
+          <div>
+            <span id="statusTitle" class="status-title">正常動作（厳正直線条件を満たしています）</span>
+            <span id="statusDesc">連続した1本の直線を描画可能です。</span>
+          </div>
+        </div>
+
+        <!-- Presets -->
+        <section class="panel-section">
+          <h2 class="section-heading">
+            おすすめプリセット
+            <span class="section-sub">ワンクリック読込</span>
+          </h2>
+          <div class="preset-grid">
+            <button type="button" class="preset-btn is-active" data-preset="standard">
+              <span class="preset-name">標準バランス型 (S=1)</span>
+              <span class="preset-spec">L=0.70 · s=0.30 · S=1</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="compact">
+              <span class="preset-name">コンパクト型 (S=1)</span>
+              <span class="preset-spec">L=0.45 · s=0.20 · S=1</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="large">
+              <span class="preset-name">大型ストローク (S=100)</span>
+              <span class="preset-spec">L=70 · s=30 · S=100</span>
+            </button>
+            <button type="button" class="preset-btn" data-preset="wide">
+              <span class="preset-name">大可動角型 (S=100)</span>
+              <span class="preset-spec">L=50 · s=25 · S=100</span>
+            </button>
+          </div>
+        </section>
+
+        <!-- Design Mode Tabs -->
+        <section class="panel-section">
+          <div class="segmented-tabs" role="tablist" aria-label="設計モード">
+            <button type="button" role="tab" id="tabManual" class="tab-btn is-active" aria-selected="true">
+              手動設計モード
+            </button>
+            <button type="button" role="tab" id="tabInverse" class="tab-btn" aria-selected="false">
+              逆算設計モード (S指定)
+            </button>
+          </div>
+
+          <!-- Manual Mode Controls -->
+          <div id="manualControls" class="panel-section" style="border-bottom:none; padding-bottom:0; gap:12px;">
+            <div class="param-group">
+              <div class="param-header">
+                <label class="param-label" for="inputL">
+                  <span class="color-swatch" style="background:var(--link-L)"></span>
+                  長いリンク L（2本）
+                </label>
+                <div class="param-input-wrap">
+                  <input type="number" id="inputL" class="num-input" step="any" min="0.01" />
+                </div>
+              </div>
+              <input type="range" id="sliderL" class="range-slider" />
+            </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <label class="param-label" for="inputS">
+                  <span class="color-swatch" style="background:var(--link-s)"></span>
+                  菱形リンク s（4本）
+                </label>
+                <div class="param-input-wrap">
+                  <input type="number" id="inputS" class="num-input" step="any" min="0.01" />
+                </div>
+              </div>
+              <input type="range" id="sliderS" class="range-slider" />
+            </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <label class="param-label" for="inputR">
+                  <span class="color-swatch" style="background:var(--link-r)"></span>
+                  クランク・支点間 r
+                </label>
+                <div class="param-input-wrap">
+                  <input type="number" id="inputR" class="num-input" step="any" min="0.01" />
+                </div>
+              </div>
+              <input type="range" id="sliderR" class="range-slider" />
+              <div class="param-hint">
+                <span>成立範囲: (L-s)/2 &lt; r ≤ (L+s)/2</span>
+                <span id="rBoundsHint" class="mono">-</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Inverse Design Mode Controls -->
+          <div id="inverseControls" class="panel-section hidden" style="border-bottom:none; padding-bottom:0; gap:12px;">
+            <div class="param-group">
+              <div class="param-header">
+                <label class="param-label" for="inputTargetS">
+                  <span class="color-swatch" style="background:var(--point-Q)"></span>
+                  目標ストローク S_target
+                </label>
+                <div class="param-input-wrap">
+                  <input type="number" id="inputTargetS" class="num-input" step="any" min="0.01" />
+                </div>
+              </div>
+              <input type="range" id="sliderTargetS" class="range-slider" />
+            </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <label class="param-label" for="inputInvL">
+                  <span class="color-swatch" style="background:var(--link-L)"></span>
+                  長いリンク L
+                </label>
+                <div class="param-input-wrap">
+                  <input type="number" id="inputInvL" class="num-input" step="any" min="0.01" />
+                </div>
+              </div>
+              <input type="range" id="sliderInvL" class="range-slider" />
+            </div>
+
+            <div class="param-group">
+              <div class="param-header">
+                <label class="param-label" for="inputInvS">
+                  <span class="color-swatch" style="background:var(--link-s)"></span>
+                  菱形リンク s
+                </label>
+                <div class="param-input-wrap">
+                  <input type="number" id="inputInvS" class="num-input" step="any" min="0.01" />
+                </div>
+              </div>
+              <input type="range" id="sliderInvS" class="range-slider" />
+            </div>
+
+            <div class="computed-box">
+              <div class="computed-row">
+                <span>算出されたクランク長 r</span>
+                <span id="invComputedR" class="computed-val">-</span>
+              </div>
+              <div class="computed-row" style="font-size:11.5px; color:var(--text-secondary);">
+                <span>成立条件 L × s ≥ S_target² / 16</span>
+                <span id="invConditionCheck" class="mono">-</span>
+              </div>
+            </div>
+
+            <div id="invGuideBox" class="status-banner is-warn hidden">
+              <span class="status-glyph" aria-hidden="true">▲</span>
+              <div>
+                <span class="status-title">逆算設計ガイド</span>
+                <span id="invGuideText"></span>
+                <div style="margin-top:8px;">
+                  <button type="button" id="btnInvAutoFix" class="btn btn-sm">条件を満たす最小の L に調整</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Real-time Metrics & Verification -->
+        <section class="panel-section">
+          <h2 class="section-heading">
+            理論値・リアルタイム検証
+            <span class="section-sub mono">Precision Check</span>
+          </h2>
+          <div class="metrics-grid">
+            <div class="metric-cell">
+              <span class="metric-label">理論ストローク S</span>
+              <span id="valStroke" class="metric-value">-</span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">直線の位置 x = d</span>
+              <span id="valDistD" class="metric-value">-</span>
+            </div>
+            <div class="metric-cell is-wide">
+              <span class="metric-label">反転積 |OP| · |OQ| （理論定数 k = L² - s²）</span>
+              <span id="valProduct" class="metric-value">-</span>
+              <span id="valProductSub" class="metric-sub">-</span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">菱形の最小内角 θ_min</span>
+              <span id="valMinAngle" class="metric-value">-</span>
+            </div>
+            <div class="metric-cell">
+              <span class="metric-label">可動範囲 ±φ_max</span>
+              <span id="valPhiMax" class="metric-value">-</span>
+            </div>
+            <div class="metric-cell is-wide">
+              <span class="metric-label">描点 Q の現在座標 (Qx, Qy)</span>
+              <span id="valPointQ" class="metric-value">-</span>
+              <span id="valStraightErr" class="metric-sub">-</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- SVG Cut-Sheet Export (Craft Support) -->
+        <section class="panel-section">
+          <h2 class="section-heading">
+            工作用 SVG 図面エクスポート
+            <span class="section-sub">L×2, s×4, r×1, ベース×1</span>
+          </h2>
+          <div class="export-grid">
+            <div class="export-field">
+              <label for="svgHoleDia">ピン穴径 (mm)</label>
+              <input type="number" id="svgHoleDia" value="3.2" min="0.5" max="30" step="0.1" />
+            </div>
+            <div class="export-field">
+              <label for="svgLinkWidth">リンク幅 (mm)</label>
+              <input type="number" id="svgLinkWidth" value="12" min="2" max="80" step="0.5" />
+            </div>
+            <div class="export-field">
+              <label for="svgScale">倍率 (mm/単位)</label>
+              <input type="number" id="svgScale" value="100" min="0.1" max="1000" step="1" />
+            </div>
+          </div>
+          <div id="svgScaleHint" class="param-hint" style="margin-top:2px;">
+            <span>実寸プレビュー: L = 70.0 mm, s = 30.0 mm</span>
+          </div>
+          <div class="export-actions">
+            <button type="button" id="btnPreviewSvg" class="btn btn-sm">図面プレビュー</button>
+            <button type="button" id="btnDownloadSvg" class="btn btn-primary btn-sm">SVGダウンロード</button>
+          </div>
+        </section>
+      </aside>
+
+      <!-- Main Simulation Canvas Stage -->
+      <main class="stage-pane">
+        <!-- Stage Toolbar -->
+        <div class="stage-toolbar">
+          <div class="toolbar-group">
+            <button type="button" id="btnZoomIn" class="btn btn-icon btn-sm" title="拡大">＋</button>
+            <button type="button" id="btnZoomOut" class="btn btn-icon btn-sm" title="縮小">－</button>
+            <button type="button" id="btnFitView" class="btn btn-sm" title="機構全体が収まるように自動フィット">自動フィット</button>
+            <label class="toggle-chip is-on" style="cursor:pointer;">
+              <input type="checkbox" id="chkAutoFit" checked style="margin:0; accent-color:var(--accent);" />
+              変更時自動フィット
+            </label>
+          </div>
+
+          <div class="toolbar-group">
+            <button type="button" id="btnToggleCircles" class="toggle-chip is-on" aria-pressed="true">補助円・到達範囲</button>
+            <button type="button" id="btnToggleRay" class="toggle-chip is-on" aria-pressed="true">反転線 O-P-Q</button>
+            <button type="button" id="btnToggleTrace" class="toggle-chip is-on" aria-pressed="true">描点軌跡</button>
+            <button type="button" id="btnToggleLabels" class="toggle-chip is-on" aria-pressed="true">点・寸法ラベル</button>
+            <button type="button" id="btnClearTrace" class="btn btn-sm">軌跡クリア</button>
+          </div>
+        </div>
+
+        <!-- Canvas Viewport -->
+        <div class="canvas-wrap" id="canvasWrap">
+          <canvas id="simCanvas" aria-label="ポースリエ・リプキン機構 シミュレーションキャンバス"></canvas>
+
+          <div class="canvas-hud-tl">
+            <div class="hud-panel">
+              <div class="legend-row">
+                <span class="legend-item"><span class="legend-line" style="background:var(--link-L);"></span>長いリンク L</span>
+                <span class="legend-item"><span class="legend-line" style="background:var(--link-s);"></span>菱形リンク s</span>
+                <span class="legend-item"><span class="legend-line" style="background:var(--link-r);"></span>クランク r</span>
+                <span class="legend-item"><span class="legend-line" style="background:var(--point-Q);"></span>描点 Q 軌跡</span>
+              </div>
+            </div>
+          </div>
+
+          <div class="canvas-hud-tr">
+            <div class="hud-panel mono" id="cursorHud">
+              カーソル: (0.000, 0.000) · 倍率 100%
+            </div>
+          </div>
+
+          <div class="canvas-hud-bl">
+            <div class="hud-panel" id="interactionHint">
+              点 P をドラッグしてクランク操作 ／ 背景ドラッグで移動 ／ ホイールで拡大縮小
+            </div>
+          </div>
+        </div>
+
+        <!-- Bottom Playback & Angle Bar -->
+        <div class="playback-bar">
+          <div class="playback-controls">
+            <button type="button" id="btnPlayPause" class="btn btn-primary" style="min-width:104px;">
+              一時停止
+            </button>
+            <button type="button" id="btnCenterPhi" class="btn" title="クランク角 φ を 0° へ戻す">
+              中央 (0°)
+            </button>
+            <select id="speedSelect" class="speed-select" aria-label="アニメーション速度">
+              <option value="0.25">0.25× 速度</option>
+              <option value="0.5">0.5× 速度</option>
+              <option value="1" selected>1.0× 速度</option>
+              <option value="2">2.0× 速度</option>
+              <option value="3">3.0× 速度</option>
+            </select>
+          </div>
+
+          <div class="angle-control">
+            <label for="sliderPhi" class="angle-label">クランク角 φ</label>
+            <input type="range" id="sliderPhi" class="range-slider" min="-60" max="60" step="0.05" value="0" />
+            <span id="phiReadout" class="angle-readout">0.00°</span>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- SVG Cut-Sheet Preview Modal -->
+  <div id="svgModal" class="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="svgModalTitle">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="svgModalTitle" class="modal-title">工作用 2D カッティング SVG プレビュー</h3>
+        <button type="button" id="btnCloseSvgModal" class="btn btn-sm">閉じる</button>
+      </div>
+      <div class="modal-body">
+        <div id="svgSummaryText" style="font-size:12.5px; color:var(--text-secondary);"></div>
+        <div id="svgPreviewContainer" class="svg-preview-box"></div>
+      </div>
+      <div class="modal-footer">
+        <span style="font-size:12px; color:var(--text-muted);">
+          赤線: 外形カット / 青線: ピン穴カット / 灰色: 彫刻ラベル（1:1 mmスケール出力）
+        </span>
+        <button type="button" id="btnModalDownloadSvg" class="btn btn-primary">
+          peaucellier-lipkin-parts.svg を保存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function () {
+      'use strict';
+
+      // =========================================================================
+      // Presets & Application State
+      // =========================================================================
+      const PRESETS = {
+        standard: {
+          name: '標準バランス型 (S=1)',
+          L: 0.70,
+          s: 0.30,
+          r: 0.40 / (2 * Math.sqrt(0.75)), // ~0.2309401077 -> exact S = 1.000
+          targetS: 1.0,
+          svgScale: 100
+        },
+        compact: {
+          name: 'コンパクト型 (S=1)',
+          L: 0.45,
+          s: 0.20,
+          r: 0.1625 / (2 * Math.sqrt(0.1725)), // ~0.19562726 -> exact S = 1.000
+          targetS: 1.0,
+          svgScale: 100
+        },
+        large: {
+          name: '大型ストローク (S=100)',
+          L: 70,
+          s: 30,
+          r: 4000 / (2 * Math.sqrt(7500)), // ~23.09401077 -> exact S = 100.0
+          targetS: 100,
+          svgScale: 1
+        },
+        wide: {
+          name: '大可動角型 (S=100)',
+          L: 50,
+          s: 25,
+          r: 1875 / (2 * Math.sqrt(3125)), // ~16.77050983 -> exact S = 100.0, phi_max ~ ±83.6°
+          targetS: 100,
+          svgScale: 1
+        }
+      };
+
+      const state = {
+        mode: 'manual', // 'manual' | 'inverse'
+        activePreset: 'standard',
+        L: PRESETS.standard.L,
+        s: PRESETS.standard.s,
+        r: PRESETS.standard.r,
+        targetS: PRESETS.standard.targetS,
+
+        phi: 0.35, // radians
+        playing: true,
+        direction: 1,
+        speed: 1.0,
+
+        // Viewport transform (world -> screen)
+        scale: 240, // px per world unit
+        fitScale: 240, // baseline 100% scale from autoFit
+        panX: 0,    // screen X of world (0,0)
+        panY: 0,    // screen Y of world (0,0)
+        autoFitOnParamChange: true,
+
+        // Visual layer toggles
+        showCircles: true,
+        showRay: true,
+        showTrace: true,
+        showLabels: true,
+
+        // Trace buffer [{x, y}]
+        trace: [],
+
+        // Pointer interaction state
+        draggingMode: null, // 'crank' | 'pan' | null
+        lastPointerX: 0,
+        lastPointerY: 0,
+        hoverWorld: { x: 0, y: 0 },
+        hoverNearP: false,
+
+        // SVG export config
+        svgHoleDia: 3.2,
+        svgLinkWidth: 12.0,
+        svgScale: 100.0
+      };
+
+      // =========================================================================
+      // DOM Elements
+      // =========================================================================
+      const el = {
+        statusBanner: document.getElementById('statusBanner'),
+        statusGlyph: document.getElementById('statusGlyph'),
+        statusTitle: document.getElementById('statusTitle'),
+        statusDesc: document.getElementById('statusDesc'),
+
+        presetBtns: document.querySelectorAll('.preset-btn'),
+        tabManual: document.getElementById('tabManual'),
+        tabInverse: document.getElementById('tabInverse'),
+        manualControls: document.getElementById('manualControls'),
+        inverseControls: document.getElementById('inverseControls'),
+
+        inputL: document.getElementById('inputL'),
+        sliderL: document.getElementById('sliderL'),
+        inputS: document.getElementById('inputS'),
+        sliderS: document.getElementById('sliderS'),
+        inputR: document.getElementById('inputR'),
+        sliderR: document.getElementById('sliderR'),
+        rBoundsHint: document.getElementById('rBoundsHint'),
+
+        inputTargetS: document.getElementById('inputTargetS'),
+        sliderTargetS: document.getElementById('sliderTargetS'),
+        inputInvL: document.getElementById('inputInvL'),
+        sliderInvL: document.getElementById('sliderInvL'),
+        inputInvS: document.getElementById('inputInvS'),
+        sliderInvS: document.getElementById('sliderInvS'),
+        invComputedR: document.getElementById('invComputedR'),
+        invConditionCheck: document.getElementById('invConditionCheck'),
+        invGuideBox: document.getElementById('invGuideBox'),
+        invGuideText: document.getElementById('invGuideText'),
+        btnInvAutoFix: document.getElementById('btnInvAutoFix'),
+
+        valStroke: document.getElementById('valStroke'),
+        valDistD: document.getElementById('valDistD'),
+        valProduct: document.getElementById('valProduct'),
+        valProductSub: document.getElementById('valProductSub'),
+        valMinAngle: document.getElementById('valMinAngle'),
+        valPhiMax: document.getElementById('valPhiMax'),
+        valPointQ: document.getElementById('valPointQ'),
+        valStraightErr: document.getElementById('valStraightErr'),
+
+        svgHoleDia: document.getElementById('svgHoleDia'),
+        svgLinkWidth: document.getElementById('svgLinkWidth'),
+        svgScale: document.getElementById('svgScale'),
+        svgScaleHint: document.getElementById('svgScaleHint'),
+        btnPreviewSvg: document.getElementById('btnPreviewSvg'),
+        btnDownloadSvg: document.getElementById('btnDownloadSvg'),
+
+        canvasWrap: document.getElementById('canvasWrap'),
+        canvas: document.getElementById('simCanvas'),
+        cursorHud: document.getElementById('cursorHud'),
+
+        btnZoomIn: document.getElementById('btnZoomIn'),
+        btnZoomOut: document.getElementById('btnZoomOut'),
+        btnFitView: document.getElementById('btnFitView'),
+        chkAutoFit: document.getElementById('chkAutoFit'),
+        btnToggleCircles: document.getElementById('btnToggleCircles'),
+        btnToggleRay: document.getElementById('btnToggleRay'),
+        btnToggleTrace: document.getElementById('btnToggleTrace'),
+        btnToggleLabels: document.getElementById('btnToggleLabels'),
+        btnClearTrace: document.getElementById('btnClearTrace'),
+
+        btnPlayPause: document.getElementById('btnPlayPause'),
+        btnCenterPhi: document.getElementById('btnCenterPhi'),
+        speedSelect: document.getElementById('speedSelect'),
+        sliderPhi: document.getElementById('sliderPhi'),
+        phiReadout: document.getElementById('phiReadout'),
+
+        btnOpenSvgModal: document.getElementById('btnOpenSvgModal'),
+        svgModal: document.getElementById('svgModal'),
+        btnCloseSvgModal: document.getElementById('btnCloseSvgModal'),
+        svgPreviewContainer: document.getElementById('svgPreviewContainer'),
+        svgSummaryText: document.getElementById('svgSummaryText'),
+        btnModalDownloadSvg: document.getElementById('btnModalDownloadSvg'),
+        btnDownloadHtml: document.getElementById('btnDownloadHtml')
+      };
+
+      const ctx = el.canvas.getContext('2d');
+
+      // =========================================================================
+      // Formatting Helpers
+      // =========================================================================
+      function fmt(val, digits) {
+        if (!Number.isFinite(val)) return '—';
+        const mag = Math.max(Math.abs(state.L), Math.abs(state.s), Math.abs(state.r), 1e-9);
+        if (digits === undefined) {
+          if (mag >= 50) digits = 2;
+          else if (mag >= 5) digits = 3;
+          else digits = 4;
+        }
+        return val.toFixed(digits);
+      }
+
+      // =========================================================================
+      // Exact Peaucellier-Lipkin Kinematic & Geometric Solver
+      // =========================================================================
+      function evaluateLinkage(L, s, r, phiRad) {
+        const EPS = 1e-9;
+
+        // Basic dimension validity
+        if (!Number.isFinite(L) || !Number.isFinite(s) || !Number.isFinite(r) || L <= 0 || s <= 0 || r <= 0) {
+          return {
+            valid: false,
+            reasonTitle: '動作不可（リンク寸法エラー）',
+            reasonDesc: 'L、s、r はすべて正の数値である必要があります。',
+            canRenderPartial: false
+          };
+        }
+
+        if (L <= s + EPS) {
+          return {
+            valid: false,
+            reasonTitle: '動作不可（L > s が必要）',
+            reasonDesc: `長いリンク L (${fmt(L)}) は菱形リンク s (${fmt(s)}) より長くする必要があります（現在 L ≤ s）。`,
+            canRenderPartial: false
+          };
+        }
+
+        // Continuous single straight-line condition: L - s < 2r <= L + s
+        const twoR = 2 * r;
+        const minTwoR = L - s;
+        const maxTwoR = L + s;
+
+        if (twoR <= minTwoR + EPS) {
+          return {
+            valid: false,
+            reasonTitle: '動作不可（クランクが小さすぎます）',
+            reasonDesc: `連続直線条件 L - s < 2r ≤ L + s を満たしていません。2r = ${fmt(twoR)} が L - s = ${fmt(minTwoR)} 以下のため、リンクが届きません（r > ${fmt(minTwoR / 2)} が必要です）。`,
+            canRenderPartial: true,
+            L, s, r
+          };
+        }
+
+        if (twoR > maxTwoR + EPS) {
+          return {
+            valid: false,
+            reasonTitle: '動作不可（連続した1本の直線になりません）',
+            reasonDesc: `2r = ${fmt(twoR)} が L + s = ${fmt(maxTwoR)} を超えています。φ = 0° 付近で機構が組めず軌跡が2つに分断されるため、r ≤ ${fmt(maxTwoR / 2)} にしてください。`,
+            canRenderPartial: true,
+            L, s, r
+          };
+        }
+
+        // Valid continuous straight-line linkage!
+        const ratio = Math.min(1, Math.max(-1, minTwoR / twoR));
+        const phiMax = 2 * Math.acos(ratio);
+
+        // Theoretical values
+        const k = L * L - s * s;
+        const d = k / (2 * r);
+        const S_sq = (L + s) * (L + s) - d * d;
+        const S = 2 * Math.sqrt(Math.max(0, S_sq));
+
+        // Clamp phi safely into [-phiMax, +phiMax]
+        const clampedPhi = Math.max(-phiMax, Math.min(phiMax, phiRad));
+
+        // P = (r + r cos(phi), r sin(phi))
+        const O = { x: 0, y: 0 };
+        const Op = { x: r, y: 0 };
+        const P = {
+          x: r + r * Math.cos(clampedPhi),
+          y: r * Math.sin(clampedPhi)
+        };
+
+        const rhoP = Math.hypot(P.x, P.y);
+        if (rhoP <= EPS) {
+          return {
+            valid: false,
+            reasonTitle: '動作不可（特異点 ρ_P = 0）',
+            reasonDesc: '点 P が支点 O と重なっています。',
+            canRenderPartial: false
+          };
+        }
+
+        // Unit vector u and normal vector n
+        const u = { x: P.x / rhoP, y: P.y / rhoP };
+        const n = { x: -u.y, y: u.x };
+
+        // Check assembly condition L - s < rhoP < L + s (allow boundary with clamp for dead points)
+        const dOM = (L * L - s * s + rhoP * rhoP) / (2 * rhoP);
+        const hSq = Math.max(0, L * L - dOM * dOM);
+        const h = Math.sqrt(hSq);
+
+        const A = {
+          x: dOM * u.x + h * n.x,
+          y: dOM * u.y + h * n.y
+        };
+        const B = {
+          x: dOM * u.x - h * n.x,
+          y: dOM * u.y - h * n.y
+        };
+        const M = {
+          x: dOM * u.x,
+          y: dOM * u.y
+        };
+        const Q = {
+          x: 2 * dOM * u.x - P.x,
+          y: 2 * dOM * u.y - P.y
+        };
+
+        const rhoQ = Math.hypot(Q.x, Q.y);
+        const productOPOQ = rhoP * rhoQ;
+
+        // Rhombus interior angles: sin(alpha/2) = h / s
+        const sinHalf = Math.min(1, Math.max(0, h / s));
+        const alphaDeg = (2 * Math.asin(sinHalf) * 180) / Math.PI;
+        const betaDeg = 180 - alphaDeg;
+        const minAngleDeg = Math.min(alphaDeg, betaDeg);
+
+        // Warning checks (pinch / dead point)
+        const deadRatio = phiMax > EPS ? Math.abs(clampedPhi) / phiMax : 0;
+        const isDeadPointClose = deadRatio >= 0.94;
+        const isRhombusPinched = minAngleDeg < 15.0;
+
+        let statusLevel = 'nominal'; // 'nominal' | 'warn'
+        let statusTitle = '正常動作（厳正直線条件を満たしています）';
+        let statusDesc = `可動範囲 ±${(phiMax * 180 / Math.PI).toFixed(1)}° で厳密直線 x = ${fmt(d)} を描画中。`;
+
+        if (isDeadPointClose || isRhombusPinched) {
+          statusLevel = 'warn';
+          if (isDeadPointClose) {
+            statusTitle = '注意：死点（可動限界）に接近';
+            statusDesc = `菱形がつぶれて駆動負荷が急増する領域です（最小内角 ${minAngleDeg.toFixed(1)}°）。`;
+          } else {
+            statusTitle = '注意：菱形の関節角度が狭くなっています';
+            statusDesc = `菱形の最小内角が ${minAngleDeg.toFixed(1)}° です（P と Q の交差付近、または死点付近）。`;
+          }
+        }
+
+        return {
+          valid: true,
+          statusLevel,
+          statusTitle,
+          statusDesc,
+          L, s, r,
+          phi: clampedPhi,
+          phiMax,
+          O, Op, P, A, B, M, Q,
+          rhoP,
+          rhoQ,
+          dOM,
+          h,
+          d,
+          S,
+          k,
+          productOPOQ,
+          minAngleDeg,
+          isDeadPointClose,
+          isRhombusPinched
+        };
+      }
+
+      // =========================================================================
+      // Inverse Design Solver
+      // =========================================================================
+      function evaluateInverse(targetS, L, s) {
+        const EPS = 1e-9;
+        if (!Number.isFinite(targetS) || !Number.isFinite(L) || !Number.isFinite(s) || targetS <= 0 || L <= 0 || s <= 0) {
+          return { ok: false, message: 'S_target、L、s には正の値を入力してください。' };
+        }
+        if (L <= s + EPS) {
+          return { ok: false, message: '長いリンク L は菱形リンク s より大きく設定してください（L > s）。' };
+        }
+        const ls = L * s;
+        const reqLS = (targetS * targetS) / 16;
+        if (ls + 1e-12 < reqLS) {
+          const minL = reqLS / s;
+          return {
+            ok: false,
+            ls,
+            reqLS,
+            minL: Math.max(minL, s * 1.05),
+            message: `条件 L × s ≥ S_target² / 16 を満たしていません（現在 L×s = ${fmt(ls)} < 必要値 ${fmt(reqLS)}）。L または s を大きくするか、S_target を ${fmt(4 * Math.sqrt(ls))} 以下にしてください。`
+          };
+        }
+        const halfS = targetS / 2;
+        const denomInner = Math.max(0, (L + s) * (L + s) - halfS * halfS);
+        const denom = 2 * Math.sqrt(denomInner);
+        if (denom <= EPS) {
+          return { ok: false, message: '分母がゼロに近く計算できません。L または s を大きくしてください。' };
+        }
+        const r = (L * L - s * s) / denom;
+        return { ok: true, ls, reqLS, r };
+      }
+
+      // =========================================================================
+      // Dynamic Slider Bounds Management
+      // =========================================================================
+      function syncSliderBounds() {
+        const baseScale = Math.max(state.L, state.s, state.targetS, 1e-3);
+        const maxDim = baseScale >= 10 ? Math.max(200, Math.ceil(baseScale * 2.2 / 10) * 10) : Math.max(2.5, Math.ceil(baseScale * 2.5 * 10) / 10);
+        const step = maxDim >= 50 ? 0.5 : (maxDim >= 10 ? 0.1 : 0.005);
+
+        // Manual L, s, r
+        el.sliderL.min = step;
+        el.sliderL.max = maxDim;
+        el.sliderL.step = step;
+
+        el.sliderS.min = step;
+        el.sliderS.max = maxDim;
+        el.sliderS.step = step;
+
+        const rMax = Math.max(maxDim * 0.8, state.r * 1.5);
+        const rStep = rMax >= 25 ? 0.1 : 0.001;
+        el.sliderR.min = rStep;
+        el.sliderR.max = rMax;
+        el.sliderR.step = rStep;
+
+        // Inverse TargetS, L, s
+        el.sliderTargetS.min = step;
+        el.sliderTargetS.max = maxDim * 1.5;
+        el.sliderTargetS.step = step;
+
+        el.sliderInvL.min = step;
+        el.sliderInvL.max = maxDim;
+        el.sliderInvL.step = step;
+
+        el.sliderInvS.min = step;
+        el.sliderInvS.max = maxDim;
+        el.sliderInvS.step = step;
+      }
+
+      function syncInputsFromState() {
+        syncSliderBounds();
+        el.inputL.value = Number(state.L.toPrecision(6));
+        el.sliderL.value = state.L;
+        el.inputS.value = Number(state.s.toPrecision(6));
+        el.sliderS.value = state.s;
+        el.inputR.value = Number(state.r.toPrecision(6));
+        el.sliderR.value = state.r;
+
+        el.inputTargetS.value = Number(state.targetS.toPrecision(6));
+        el.sliderTargetS.value = state.targetS;
+        el.inputInvL.value = Number(state.L.toPrecision(6));
+        el.sliderInvL.value = state.L;
+        el.inputInvS.value = Number(state.s.toPrecision(6));
+        el.sliderInvS.value = state.s;
+
+        el.svgScale.value = state.svgScale;
+        updateSvgScaleHint();
+      }
+
+      function updateSvgScaleHint() {
+        const sc = Math.max(0.01, parseFloat(el.svgScale.value) || 1);
+        const Lmm = state.L * sc;
+        const smm = state.s * sc;
+        const rmm = state.r * sc;
+        el.svgScaleHint.innerHTML = `<span>出力実寸: L=${Lmm.toFixed(1)}mm, s=${smm.toFixed(1)}mm, r=${rmm.toFixed(1)}mm</span>`;
+      }
+
+      // =========================================================================
+      // Viewport Coordinate Conversions & Auto-Fit
+      // =========================================================================
+      function w2s(wx, wy) {
+        return {
+          x: state.panX + wx * state.scale,
+          y: state.panY - wy * state.scale
+        };
+      }
+
+      function s2w(sx, sy) {
+        return {
+          x: (sx - state.panX) / state.scale,
+          y: (state.panY - sy) / state.scale
+        };
+      }
+
+      function autoFit() {
+        const w = el.canvasWrap.clientWidth || 800;
+        const h = el.canvasWrap.clientHeight || 600;
+        const geom = evaluateLinkage(state.L, state.s, state.r, state.phi);
+
+        let minX, maxX, maxY;
+        if (geom.valid) {
+          minX = -0.18 * Math.max(geom.L, geom.d, 2 * geom.r);
+          maxX = Math.max(geom.d, geom.L + geom.s * 0.4, 2 * geom.r) * 1.15;
+          maxY = Math.max(geom.S / 2, geom.L, geom.r) * 1.2;
+        } else {
+          const ref = Math.max(state.L + state.s, 2 * state.r, 1);
+          minX = -0.2 * ref;
+          maxX = ref * 1.15;
+          maxY = ref * 0.95;
+        }
+        const minY = -maxY;
+
+        const worldW = Math.max(1e-6, maxX - minX);
+        const worldH = Math.max(1e-6, maxY - minY);
+        const pad = 0.84;
+
+        state.scale = Math.min((w * pad) / worldW, (h * pad) / worldH);
+        state.fitScale = state.scale;
+        const centerX = (minX + maxX) / 2;
+        const centerY = (minY + maxY) / 2;
+        state.panX = w / 2 - centerX * state.scale;
+        state.panY = h / 2 + centerY * state.scale;
+        updateCursorHud();
+      }
+
+      function updateCursorHud() {
+        const pct = state.fitScale > 0 ? Math.round((state.scale / state.fitScale) * 100) : 100;
+        el.cursorHud.textContent = `カーソル: (${fmt(state.hoverWorld.x)}, ${fmt(state.hoverWorld.y)}) · 表示倍率 ${pct}%`;
+      }
+
+      function rebuildTrace(geom) {
+        state.trace = [];
+        if (!geom || !geom.valid) return;
+        const steps = 160;
+        for (let i = 0; i <= steps; i++) {
+          const t = -geom.phiMax + (2 * geom.phiMax * i) / steps;
+          const g = evaluateLinkage(geom.L, geom.s, geom.r, t);
+          if (g.valid) {
+            state.trace.push({ x: g.Q.x, y: g.Q.y });
+          }
+        }
+      }
+
+      // =========================================================================
+      // UI Telemetry & Indicator Updates
+      // =========================================================================
+      function updateUI(geom) {
+        // Status Banner
+        el.statusBanner.classList.remove('is-warn', 'is-error');
+        if (!geom.valid) {
+          el.statusBanner.classList.add('is-error');
+          el.statusGlyph.textContent = '✖';
+          el.statusTitle.textContent = geom.reasonTitle;
+          el.statusDesc.textContent = geom.reasonDesc;
+        } else if (geom.statusLevel === 'warn') {
+          el.statusBanner.classList.add('is-warn');
+          el.statusGlyph.textContent = '▲';
+          el.statusTitle.textContent = geom.statusTitle;
+          el.statusDesc.textContent = geom.statusDesc;
+        } else {
+          el.statusGlyph.textContent = '●';
+          el.statusTitle.textContent = geom.statusTitle;
+          el.statusDesc.textContent = geom.statusDesc;
+        }
+
+        // R bounds hint
+        if (state.L > state.s && state.s > 0) {
+          el.rBoundsHint.textContent = `${fmt((state.L - state.s) / 2)} < r ≤ ${fmt((state.L + state.s) / 2)}`;
+        } else {
+          el.rBoundsHint.textContent = 'L > s が必要';
+        }
+
+        // Inverse mode info
+        if (state.mode === 'inverse') {
+          const inv = evaluateInverse(state.targetS, state.L, state.s);
+          if (inv.ok) {
+            el.invComputedR.textContent = fmt(inv.r);
+            el.invConditionCheck.textContent = `${fmt(inv.ls)} ≥ ${fmt(inv.reqLS)} (OK)`;
+            el.invConditionCheck.style.color = 'var(--nominal)';
+            el.invGuideBox.classList.add('hidden');
+          } else {
+            el.invComputedR.textContent = '計算不可';
+            if (inv.ls !== undefined) {
+              el.invConditionCheck.textContent = `${fmt(inv.ls)} < ${fmt(inv.reqLS)} (不足)`;
+              el.invConditionCheck.style.color = 'var(--error)';
+              el.btnInvAutoFix.classList.remove('hidden');
+            } else {
+              el.invConditionCheck.textContent = 'パラメータ不正';
+              el.invConditionCheck.style.color = 'var(--error)';
+              el.btnInvAutoFix.classList.add('hidden');
+            }
+            el.invGuideText.textContent = inv.message;
+            el.invGuideBox.classList.remove('hidden');
+          }
+        }
+
+        // Telemetry & Verification Metrics
+        if (geom.valid) {
+          el.valStroke.textContent = fmt(geom.S);
+          el.valDistD.textContent = fmt(geom.d);
+          el.valProduct.textContent = fmt(geom.productOPOQ, 6);
+          const diff = Math.abs(geom.productOPOQ - geom.k);
+          el.valProductSub.textContent = `理論値 k = ${fmt(geom.k, 6)} (誤差 ${diff.toExponential(1)})`;
+
+          el.valMinAngle.textContent = `${geom.minAngleDeg.toFixed(2)}°`;
+          el.valMinAngle.className = 'metric-value ' + (geom.minAngleDeg < 15 ? 'is-warn' : 'is-nominal');
+
+          const phiMaxDeg = (geom.phiMax * 180) / Math.PI;
+          el.valPhiMax.textContent = `±${phiMaxDeg.toFixed(2)}°`;
+
+          el.valPointQ.textContent = `(${fmt(geom.Q.x)}, ${fmt(geom.Q.y)})`;
+          const straightErr = Math.abs(geom.Q.x - geom.d);
+          el.valStraightErr.textContent = `x=d との偏差: ${straightErr.toExponential(1)}`;
+
+          // Angle slider bounds
+          el.sliderPhi.disabled = false;
+          el.sliderPhi.min = (-phiMaxDeg).toFixed(3);
+          el.sliderPhi.max = (phiMaxDeg).toFixed(3);
+          el.sliderPhi.step = Math.max(0.01, phiMaxDeg / 400).toFixed(3);
+          const phiDeg = (geom.phi * 180) / Math.PI;
+          el.sliderPhi.value = phiDeg;
+          el.phiReadout.textContent = `${phiDeg >= 0 ? '+' : ''}${phiDeg.toFixed(2)}°`;
+        } else {
+          el.valStroke.textContent = '—';
+          el.valDistD.textContent = '—';
+          el.valProduct.textContent = '—';
+          el.valProductSub.textContent = '成立条件外のため算出不可';
+          el.valMinAngle.textContent = '—';
+          el.valMinAngle.className = 'metric-value is-error';
+          el.valPhiMax.textContent = '—';
+          el.valPointQ.textContent = '—';
+          el.valStraightErr.textContent = '—';
+          el.sliderPhi.disabled = true;
+          el.phiReadout.textContent = '動作不可';
+        }
+
+        // Play/Pause button state
+        el.btnPlayPause.textContent = state.playing ? '一時停止' : '再生';
+        el.btnPlayPause.disabled = !geom.valid;
+        el.btnCenterPhi.disabled = !geom.valid;
+      }
+
+      // =========================================================================
+      // CAD Canvas Renderer
+      // =========================================================================
+      function niceGridStep(targetWorldUnits) {
+        const pow = Math.pow(10, Math.floor(Math.log10(targetWorldUnits)));
+        const frac = targetWorldUnits / pow;
+        if (frac <= 1.5) return 1 * pow;
+        if (frac <= 3.5) return 2 * pow;
+        if (frac <= 7.5) return 5 * pow;
+        return 10 * pow;
+      }
+
+      function drawGrid(width, height) {
+        const majorStep = niceGridStep(90 / state.scale);
+        const minorStep = majorStep / 5;
+
+        const topLeft = s2w(0, 0);
+        const bottomRight = s2w(width, height);
+        const minX = topLeft.x;
+        const maxX = bottomRight.x;
+        const minY = bottomRight.y;
+        const maxY = topLeft.y;
+
+        // Minor Grid
+        ctx.lineWidth = 1;
+        ctx.strokeStyle = '#eef2f6';
+        ctx.beginPath();
+        let startX = Math.floor(minX / minorStep) * minorStep;
+        for (let x = startX; x <= maxX; x += minorStep) {
+          const sx = Math.round(state.panX + x * state.scale) + 0.5;
+          ctx.moveTo(sx, 0);
+          ctx.lineTo(sx, height);
+        }
+        let startY = Math.floor(minY / minorStep) * minorStep;
+        for (let y = startY; y <= maxY; y += minorStep) {
+          const sy = Math.round(state.panY - y * state.scale) + 0.5;
+          ctx.moveTo(0, sy);
+          ctx.lineTo(width, sy);
+        }
+        ctx.stroke();
+
+        // Major Grid
+        ctx.strokeStyle = '#dbe3ee';
+        ctx.beginPath();
+        startX = Math.floor(minX / majorStep) * majorStep;
+        for (let x = startX; x <= maxX; x += majorStep) {
+          const sx = Math.round(state.panX + x * state.scale) + 0.5;
+          ctx.moveTo(sx, 0);
+          ctx.lineTo(sx, height);
+        }
+        startY = Math.floor(minY / majorStep) * majorStep;
+        for (let y = startY; y <= maxY; y += majorStep) {
+          const sy = Math.round(state.panY - y * state.scale) + 0.5;
+          ctx.moveTo(0, sy);
+          ctx.lineTo(width, sy);
+        }
+        ctx.stroke();
+
+        // Axes (x = 0, y = 0)
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.25;
+        ctx.beginPath();
+        const origin = w2s(0, 0);
+        if (origin.x >= 0 && origin.x <= width) {
+          ctx.moveTo(origin.x, 0);
+          ctx.lineTo(origin.x, height);
+        }
+        if (origin.y >= 0 && origin.y <= height) {
+          ctx.moveTo(0, origin.y);
+          ctx.lineTo(width, origin.y);
+        }
+        ctx.stroke();
+
+        // Grid Tick Labels
+        ctx.fillStyle = '#64748b';
+        ctx.font = '11px "SFMono-Regular", Consolas, monospace';
+        const decimals = majorStep >= 1 ? 0 : Math.min(4, Math.ceil(-Math.log10(majorStep)) + 1);
+        for (let x = startX; x <= maxX; x += majorStep) {
+          if (Math.abs(x) < majorStep * 1e-4) continue;
+          const sx = state.panX + x * state.scale;
+          const labelY = Math.min(height - 8, Math.max(16, origin.y + 14));
+          ctx.textAlign = 'center';
+          ctx.fillText(x.toFixed(decimals), sx, labelY);
+        }
+        for (let y = startY; y <= maxY; y += majorStep) {
+          if (Math.abs(y) < majorStep * 1e-4) continue;
+          const sy = state.panY - y * state.scale;
+          const labelX = Math.min(width - 28, Math.max(8, origin.x + 6));
+          ctx.textAlign = 'left';
+          ctx.fillText(y.toFixed(decimals), labelX, sy + 4);
+        }
+      }
+
+      function drawGroundSymbol(sx, sy) {
+        ctx.save();
+        ctx.translate(sx, sy);
+        ctx.fillStyle = '#334155';
+        ctx.strokeStyle = '#334155';
+        ctx.lineWidth = 1.5;
+
+        // Triangle base
+        ctx.beginPath();
+        ctx.moveTo(0, 0);
+        ctx.lineTo(-9, 15);
+        ctx.lineTo(9, 15);
+        ctx.closePath();
+        ctx.fillStyle = '#e2e8f0';
+        ctx.fill();
+        ctx.stroke();
+
+        // Ground hatching
+        ctx.beginPath();
+        ctx.moveTo(-12, 15);
+        ctx.lineTo(12, 15);
+        for (let i = -10; i <= 8; i += 5) {
+          ctx.moveTo(i, 15);
+          ctx.lineTo(i - 4, 20);
+        }
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawLink(p1, p2, color, widthPx) {
+        const a = w2s(p1.x, p1.y);
+        const b = w2s(p2.x, p2.y);
+        ctx.save();
+        ctx.lineCap = 'round';
+        // Subtle outer border for depth separation when links cross
+        ctx.strokeStyle = 'rgba(255,255,255,0.85)';
+        ctx.lineWidth = widthPx + 3;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+
+        ctx.strokeStyle = color;
+        ctx.lineWidth = widthPx;
+        ctx.beginPath();
+        ctx.moveTo(a.x, a.y);
+        ctx.lineTo(b.x, b.y);
+        ctx.stroke();
+        ctx.restore();
+      }
+
+      function drawJoint(pt, radius, fill, stroke, label, offset) {
+        const s = w2s(pt.x, pt.y);
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(s.x, s.y, radius, 0, Math.PI * 2);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.lineWidth = 2;
+        ctx.strokeStyle = stroke;
+        ctx.stroke();
+
+        if (state.showLabels && label) {
+          const ox = offset ? offset.x : 10;
+          const oy = offset ? offset.y : -10;
+          ctx.font = 'bold 12px "Hiragino Sans", sans-serif';
+          const textW = ctx.measureText(label).width;
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.86)';
+          ctx.fillRect(s.x + ox - 3, s.y + oy - 11, textW + 6, 15);
+          ctx.fillStyle = '#0f172a';
+          ctx.textAlign = 'left';
+          ctx.fillText(label, s.x + ox, s.y + oy);
+        }
+        ctx.restore();
+      }
+
+      function renderCanvas(geom) {
+        const dpr = window.devicePixelRatio || 1;
+        const w = el.canvasWrap.clientWidth;
+        const h = el.canvasWrap.clientHeight;
+        if (el.canvas.width !== Math.round(w * dpr) || el.canvas.height !== Math.round(h * dpr)) {
+          el.canvas.width = Math.round(w * dpr);
+          el.canvas.height = Math.round(h * dpr);
+        }
+
+        ctx.save();
+        ctx.scale(dpr, dpr);
+        ctx.clearRect(0, 0, w, h);
+
+        // 1. CAD Grid
+        drawGrid(w, h);
+
+        // 2. Auxiliary Reference Circles (even when invalid if L>s>0 & r>0 to show WHY it fails!)
+        if (state.showCircles && state.L > 0 && state.s > 0 && state.r > 0) {
+          const sO = w2s(0, 0);
+          const sOp = w2s(state.r, 0);
+
+          // Crank circle (center O', radius r)
+          ctx.save();
+          ctx.setLineDash([5, 5]);
+          ctx.strokeStyle = 'rgba(217, 119, 6, 0.45)';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.arc(sOp.x, sOp.y, state.r * state.scale, 0, Math.PI * 2);
+          ctx.stroke();
+
+          // Reach circles around O: L - s and L + s
+          if (state.L > state.s) {
+            ctx.strokeStyle = 'rgba(100, 116, 139, 0.35)';
+            ctx.lineWidth = 1.25;
+            ctx.beginPath();
+            ctx.arc(sO.x, sO.y, (state.L - state.s) * state.scale, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(sO.x, sO.y, (state.L + state.s) * state.scale, 0, Math.PI * 2);
+            ctx.stroke();
+          }
+          ctx.restore();
+        }
+
+        // Fixed base line O - O'
+        const sO = w2s(0, 0);
+        const sOp = w2s(state.r, 0);
+        if (state.r > 0) {
+          ctx.save();
+          ctx.strokeStyle = '#334155';
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(sO.x, sO.y);
+          ctx.lineTo(sOp.x, sOp.y);
+          ctx.stroke();
+          ctx.restore();
+        }
+        drawGroundSymbol(sO.x, sO.y);
+        if (state.r > 0) drawGroundSymbol(sOp.x, sOp.y);
+
+        if (geom.valid) {
+          // 3. Theoretical Straight Line x = d & Stroke Segment
+          const topD = w2s(geom.d, 0);
+          ctx.save();
+          ctx.setLineDash([6, 4]);
+          ctx.strokeStyle = 'rgba(225, 29, 72, 0.35)';
+          ctx.lineWidth = 1.25;
+          ctx.beginPath();
+          ctx.moveTo(topD.x, 0);
+          ctx.lineTo(topD.x, h);
+          ctx.stroke();
+          ctx.restore();
+
+          // Exact Stroke Bounds [x=d, y=-S/2 .. +S/2]
+          const qTop = w2s(geom.d, geom.S / 2);
+          const qBot = w2s(geom.d, -geom.S / 2);
+          ctx.save();
+          ctx.strokeStyle = 'rgba(225, 29, 72, 0.28)';
+          ctx.lineWidth = 6;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(qTop.x, qTop.y);
+          ctx.lineTo(qBot.x, qBot.y);
+          ctx.stroke();
+          ctx.restore();
+
+          // Q Trace
+          if (state.showTrace && state.trace.length > 1) {
+            ctx.save();
+            ctx.strokeStyle = '#e11d48';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            for (let i = 0; i < state.trace.length; i++) {
+              const pt = w2s(state.trace[i].x, state.trace[i].y);
+              if (i === 0) ctx.moveTo(pt.x, pt.y);
+              else ctx.lineTo(pt.x, pt.y);
+            }
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // 4. Inversion Ray O-P-Q & Rhombus Diagonal A-B
+          if (state.showRay) {
+            const pA = w2s(geom.A.x, geom.A.y);
+            const pB = w2s(geom.B.x, geom.B.y);
+            const pP = w2s(geom.P.x, geom.P.y);
+            const pQ = w2s(geom.Q.x, geom.Q.y);
+            const farPt = geom.rhoQ > geom.rhoP ? pQ : pP;
+
+            ctx.save();
+            ctx.setLineDash([4, 4]);
+            ctx.strokeStyle = 'rgba(37, 99, 235, 0.45)';
+            ctx.lineWidth = 1.25;
+            ctx.beginPath();
+            ctx.moveTo(sO.x, sO.y);
+            ctx.lineTo(farPt.x, farPt.y);
+            ctx.stroke();
+
+            ctx.strokeStyle = 'rgba(13, 148, 136, 0.38)';
+            ctx.beginPath();
+            ctx.moveTo(pA.x, pA.y);
+            ctx.lineTo(pB.x, pB.y);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // 5. Mechanical Links
+          // Long links L (OA, OB)
+          drawLink(geom.O, geom.A, '#2563eb', 5.5);
+          drawLink(geom.O, geom.B, '#2563eb', 5.5);
+
+          // Rhombus links s (PA, PB, QA, QB) - highlight amber/red tint if pinched
+          const sColor = geom.minAngleDeg < 15 ? '#dc2626' : '#0d9488';
+          drawLink(geom.P, geom.A, sColor, 4.5);
+          drawLink(geom.P, geom.B, sColor, 4.5);
+          drawLink(geom.Q, geom.A, sColor, 4.5);
+          drawLink(geom.Q, geom.B, sColor, 4.5);
+
+          // Driving Crank r (O'P)
+          drawLink(geom.Op, geom.P, '#d97706', 5.5);
+
+          // 6. Joints & Labels
+          drawJoint(geom.O, 5.5, '#ffffff', '#0f172a', 'O (0,0)', { x: -48, y: -12 });
+          drawJoint(geom.Op, 5.5, '#ffffff', '#d97706', "O' (r,0)", { x: 8, y: 18 });
+          drawJoint(geom.A, 5, '#ffffff', '#2563eb', 'A', { x: 8, y: -8 });
+          drawJoint(geom.B, 5, '#ffffff', '#2563eb', 'B', { x: 8, y: 16 });
+          drawJoint(geom.P, state.hoverNearP || state.draggingMode === 'crank' ? 8 : 6.5, '#fef3c7', '#d97706', 'P', { x: -18, y: -12 });
+
+          // Drawing Point Q Reticle
+          const sQ = w2s(geom.Q.x, geom.Q.y);
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(sQ.x, sQ.y, 11, 0, Math.PI * 2);
+          ctx.strokeStyle = 'rgba(225, 29, 72, 0.35)';
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
+          drawJoint(geom.Q, 6, '#e11d48', '#ffffff', `Q (${fmt(geom.Q.x)}, ${fmt(geom.Q.y)})`, { x: 14, y: 4 });
+
+          // Label straight line d & S
+          if (state.showLabels) {
+            ctx.save();
+            ctx.font = '600 11.5px "SFMono-Regular", Consolas, monospace';
+            ctx.fillStyle = '#be123c';
+            ctx.textAlign = 'left';
+            ctx.fillText(`x = d = ${fmt(geom.d)}`, topD.x + 8, 22);
+            ctx.fillText(`ストローク S = ${fmt(geom.S)}`, qTop.x + 8, qTop.y - 6);
+            ctx.restore();
+          }
+        } else {
+          // Invalid geometry: still draw fixed pivots O and O'
+          drawJoint({ x: 0, y: 0 }, 5.5, '#ffffff', '#0f172a', 'O (0,0)', { x: -48, y: -12 });
+          if (state.r > 0) {
+            drawJoint({ x: state.r, y: 0 }, 5.5, '#ffffff', '#d97706', "O' (r,0)", { x: 8, y: 18 });
+          }
+
+          // Center canvas warning callout
+          ctx.save();
+          const msg = geom.reasonTitle;
+          ctx.font = 'bold 14px "Hiragino Sans", sans-serif';
+          const tw = ctx.measureText(msg).width;
+          const bx = Math.max(16, (w - tw - 36) / 2);
+          const by = 64;
+          ctx.fillStyle = 'rgba(254, 242, 242, 0.94)';
+          ctx.strokeStyle = '#fecaca';
+          ctx.lineWidth = 1;
+          ctx.fillRect(bx, by, tw + 36, 36);
+          ctx.strokeRect(bx, by, tw + 36, 36);
+          ctx.fillStyle = '#dc2626';
+          ctx.textAlign = 'center';
+          ctx.fillText(`✖ ${msg}`, bx + (tw + 36) / 2, by + 23);
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      // =========================================================================
+      // SVG Cut-Sheet Generator (L×2, s×4, r×1, Fixed Base×1)
+      // =========================================================================
+      function generateCutSheetSVG() {
+        const sc = Math.max(0.01, parseFloat(el.svgScale.value) || 1);
+        const holeDia = Math.max(0.5, parseFloat(el.svgHoleDia.value) || 3.2);
+        const rawLinkW = parseFloat(el.svgLinkWidth.value) || 12;
+        const linkW = Math.max(holeDia + 2, rawLinkW);
+        const holeR = holeDia / 2;
+        const R = linkW / 2;
+
+        const L_mm = Math.max(0.1, (Number.isFinite(state.L) ? state.L : 0.7) * sc);
+        const s_mm = Math.max(0.1, (Number.isFinite(state.s) ? state.s : 0.3) * sc);
+        const r_mm = Math.max(0.1, (Number.isFinite(state.r) ? state.r : 0.23) * sc);
+
+        const parts = [
+          { len: L_mm, label: `長いリンク L (1/2) — 穴間 ${L_mm.toFixed(2)} mm`, type: 'link' },
+          { len: L_mm, label: `長いリンク L (2/2) — 穴間 ${L_mm.toFixed(2)} mm`, type: 'link' },
+          { len: s_mm, label: `菱形リンク s (1/4) — 穴間 ${s_mm.toFixed(2)} mm`, type: 'link' },
+          { len: s_mm, label: `菱形リンク s (2/4) — 穴間 ${s_mm.toFixed(2)} mm`, type: 'link' },
+          { len: s_mm, label: `菱形リンク s (3/4) — 穴間 ${s_mm.toFixed(2)} mm`, type: 'link' },
+          { len: s_mm, label: `菱形リンク s (4/4) — 穴間 ${s_mm.toFixed(2)} mm`, type: 'link' },
+          { len: r_mm, label: `駆動クランク r (1/1) — 穴間 ${r_mm.toFixed(2)} mm`, type: 'link' },
+          { len: r_mm, label: `固定ベース O-O' (1/1) — 穴間 ${r_mm.toFixed(2)} mm`, type: 'base' }
+        ];
+
+        const margin = 12;
+        const rowGap = 10;
+        const baseH = linkW * 1.8;
+        const maxLen = Math.max(L_mm, s_mm, r_mm);
+        const totalW = Math.max(140, maxLen + linkW + margin * 2 + 12);
+
+        let curY = margin + R + 6;
+        let svgParts = '';
+
+        parts.forEach((p) => {
+          const isBase = p.type === 'base';
+          const halfH = isBase ? baseH / 2 : R;
+          if (isBase) {
+            curY += (halfH - R);
+          }
+          const x0 = margin + R;
+          const x1 = x0 + p.len;
+
+          // Outer cut path (red hairline)
+          if (isBase) {
+            const padX = R * 1.25;
+            const bx = x0 - padX;
+            const bw = p.len + padX * 2;
+            const by = curY - halfH;
+            svgParts += `<rect x="${bx.toFixed(3)}" y="${by.toFixed(3)}" width="${bw.toFixed(3)}" height="${baseH.toFixed(3)}" rx="3" ry="3" fill="none" stroke="#dc2626" stroke-width="0.25" />\n`;
+          } else {
+            const pathD = [
+              `M ${x0.toFixed(3)} ${(curY - R).toFixed(3)}`,
+              `L ${x1.toFixed(3)} ${(curY - R).toFixed(3)}`,
+              `A ${R.toFixed(3)} ${R.toFixed(3)} 0 0 1 ${x1.toFixed(3)} ${(curY + R).toFixed(3)}`,
+              `L ${x0.toFixed(3)} ${(curY + R).toFixed(3)}`,
+              `A ${R.toFixed(3)} ${R.toFixed(3)} 0 0 1 ${x0.toFixed(3)} ${(curY - R).toFixed(3)}`,
+              'Z'
+            ].join(' ');
+            svgParts += `<path d="${pathD}" fill="none" stroke="#dc2626" stroke-width="0.25" />\n`;
+          }
+
+          // Pin holes (blue hairline)
+          svgParts += `<circle cx="${x0.toFixed(3)}" cy="${curY.toFixed(3)}" r="${holeR.toFixed(3)}" fill="none" stroke="#2563eb" stroke-width="0.25" />\n`;
+          svgParts += `<circle cx="${x1.toFixed(3)}" cy="${curY.toFixed(3)}" r="${holeR.toFixed(3)}" fill="none" stroke="#2563eb" stroke-width="0.25" />\n`;
+
+          // Centerline & label (engrave)
+          svgParts += `<line x1="${x0.toFixed(3)}" y1="${curY.toFixed(3)}" x2="${x1.toFixed(3)}" y2="${curY.toFixed(3)}" stroke="#94a3b8" stroke-width="0.15" stroke-dasharray="1.5 1.5" />\n`;
+          svgParts += `<text x="${x0.toFixed(3)}" y="${(curY - halfH - 2.2).toFixed(3)}" font-family="sans-serif" font-size="3.2" fill="#475569">${p.label}</text>\n`;
+
+          curY += halfH + rowGap + R;
+        });
+
+        const totalH = curY + 8;
+        const footerY = totalH - 4;
+        const footerText = `Peaucellier-Lipkin Linkage | L=${L_mm.toFixed(2)}mm, s=${s_mm.toFixed(2)}mm, r=${r_mm.toFixed(2)}mm | Hole Ø${holeDia.toFixed(2)}mm, Width ${linkW.toFixed(1)}mm`;
+
+        const svgStr = `<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="${totalW.toFixed(2)}mm" height="${totalH.toFixed(2)}mm" viewBox="0 0 ${totalW.toFixed(2)} ${totalH.toFixed(2)}">
+  <rect x="0" y="0" width="${totalW.toFixed(2)}" height="${totalH.toFixed(2)}" fill="#ffffff" />
+  ${svgParts}
+  <text x="${margin}" y="${footerY.toFixed(2)}" font-family="monospace" font-size="3" fill="#64748b">${footerText}</text>
+</svg>`;
+
+        return {
+          svgStr,
+          L_mm,
+          s_mm,
+          r_mm,
+          holeDia,
+          linkW,
+          totalW,
+          totalH
+        };
+      }
+
+      function downloadFile(filename, content, mimeType) {
+        const blob = new Blob([content], { type: mimeType });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }
+
+      // =========================================================================
+      // State Update & Parameter Handlers
+      // =========================================================================
+      function onParamsChanged(shouldFit) {
+        const geom = evaluateLinkage(state.L, state.s, state.r, state.phi);
+        if (geom.valid) {
+          state.phi = geom.phi;
+        }
+        rebuildTrace(geom);
+        if (shouldFit && state.autoFitOnParamChange) {
+          autoFit();
+        }
+        updateUI(geom);
+        updateSvgScaleHint();
+      }
+
+      function applyPreset(key) {
+        const p = PRESETS[key];
+        if (!p) return;
+        state.activePreset = key;
+        state.L = p.L;
+        state.s = p.s;
+        state.r = p.r;
+        state.targetS = p.targetS;
+        state.svgScale = p.svgScale;
+        state.phi = 0.25;
+
+        el.presetBtns.forEach(btn => {
+          btn.classList.toggle('is-active', btn.dataset.preset === key);
+        });
+
+        syncInputsFromState();
+        onParamsChanged(true);
+        if (!state.autoFitOnParamChange) autoFit();
+      }
+
+      function clearActivePreset() {
+        state.activePreset = null;
+        el.presetBtns.forEach(btn => btn.classList.remove('is-active'));
+      }
+
+      function setMode(mode) {
+        state.mode = mode;
+        const isManual = mode === 'manual';
+        el.tabManual.classList.toggle('is-active', isManual);
+        el.tabManual.setAttribute('aria-selected', String(isManual));
+        el.tabInverse.classList.toggle('is-active', !isManual);
+        el.tabInverse.setAttribute('aria-selected', String(!isManual));
+
+        el.manualControls.classList.toggle('hidden', !isManual);
+        el.inverseControls.classList.toggle('hidden', isManual);
+
+        if (!isManual) {
+          applyInverseCalculation(false);
+        } else {
+          syncInputsFromState();
+          onParamsChanged(false);
+        }
+      }
+
+      function applyInverseCalculation(shouldFit) {
+        const inv = evaluateInverse(state.targetS, state.L, state.s);
+        if (inv.ok) {
+          state.r = inv.r;
+        }
+        syncInputsFromState();
+        onParamsChanged(shouldFit);
+      }
+
+      // =========================================================================
+      // Event Listeners
+      // =========================================================================
+      // Presets
+      el.presetBtns.forEach(btn => {
+        btn.addEventListener('click', () => applyPreset(btn.dataset.preset));
+      });
+
+      // Tabs
+      el.tabManual.addEventListener('click', () => setMode('manual'));
+      el.tabInverse.addEventListener('click', () => setMode('inverse'));
+
+      // Manual inputs & sliders
+      function bindManualParam(inputEl, sliderEl, prop) {
+        sliderEl.addEventListener('input', () => {
+          clearActivePreset();
+          state[prop] = parseFloat(sliderEl.value);
+          inputEl.value = Number(state[prop].toPrecision(6));
+          onParamsChanged(true);
+        });
+        inputEl.addEventListener('input', () => {
+          const val = parseFloat(inputEl.value);
+          if (Number.isFinite(val)) {
+            clearActivePreset();
+            state[prop] = val;
+            syncSliderBounds();
+            sliderEl.value = val;
+            onParamsChanged(true);
+          }
+        });
+      }
+      bindManualParam(el.inputL, el.sliderL, 'L');
+      bindManualParam(el.inputS, el.sliderS, 's');
+      bindManualParam(el.inputR, el.sliderR, 'r');
+
+      // Inverse inputs & sliders
+      function bindInverseParam(inputEl, sliderEl, prop) {
+        sliderEl.addEventListener('input', () => {
+          clearActivePreset();
+          state[prop] = parseFloat(sliderEl.value);
+          inputEl.value = Number(state[prop].toPrecision(6));
+          applyInverseCalculation(true);
+        });
+        inputEl.addEventListener('input', () => {
+          const val = parseFloat(inputEl.value);
+          if (Number.isFinite(val)) {
+            clearActivePreset();
+            state[prop] = val;
+            syncSliderBounds();
+            sliderEl.value = val;
+            applyInverseCalculation(true);
+          }
+        });
+      }
+      bindInverseParam(el.inputTargetS, el.sliderTargetS, 'targetS');
+      bindInverseParam(el.inputInvL, el.sliderInvL, 'L');
+      bindInverseParam(el.inputInvS, el.sliderInvS, 's');
+
+      el.btnInvAutoFix.addEventListener('click', () => {
+        const inv = evaluateInverse(state.targetS, state.L, state.s);
+        if (!inv.ok && inv.minL) {
+          state.L = Number((inv.minL * 1.05).toPrecision(5));
+          applyInverseCalculation(true);
+        }
+      });
+
+      // Playback & Angle Slider
+      el.btnPlayPause.addEventListener('click', () => {
+        state.playing = !state.playing;
+        updateUI(evaluateLinkage(state.L, state.s, state.r, state.phi));
+      });
+
+      el.btnCenterPhi.addEventListener('click', () => {
+        state.playing = false;
+        state.phi = 0;
+        updateUI(evaluateLinkage(state.L, state.s, state.r, state.phi));
+      });
+
+      el.speedSelect.addEventListener('change', () => {
+        state.speed = parseFloat(el.speedSelect.value) || 1.0;
+      });
+
+      el.sliderPhi.addEventListener('input', () => {
+        state.playing = false;
+        const deg = parseFloat(el.sliderPhi.value);
+        state.phi = (deg * Math.PI) / 180;
+        updateUI(evaluateLinkage(state.L, state.s, state.r, state.phi));
+      });
+
+      // Toolbar Zoom & Toggles
+      function zoomAt(factor, sx, sy) {
+        const before = s2w(sx, sy);
+        state.scale = Math.max(0.2, Math.min(20000, state.scale * factor));
+        state.panX = sx - before.x * state.scale;
+        state.panY = sy + before.y * state.scale;
+      }
+
+      el.btnZoomIn.addEventListener('click', () => {
+        zoomAt(1.25, el.canvasWrap.clientWidth / 2, el.canvasWrap.clientHeight / 2);
+      });
+
+      el.btnZoomOut.addEventListener('click', () => {
+        zoomAt(0.8, el.canvasWrap.clientWidth / 2, el.canvasWrap.clientHeight / 2);
+      });
+
+      el.btnFitView.addEventListener('click', () => {
+        autoFit();
+      });
+
+      el.chkAutoFit.addEventListener('change', () => {
+        state.autoFitOnParamChange = el.chkAutoFit.checked;
+      });
+
+      function bindToggle(btn, prop) {
+        btn.addEventListener('click', () => {
+          state[prop] = !state[prop];
+          btn.classList.toggle('is-on', state[prop]);
+          btn.setAttribute('aria-pressed', String(state[prop]));
+        });
+      }
+      bindToggle(el.btnToggleCircles, 'showCircles');
+      bindToggle(el.btnToggleRay, 'showRay');
+      bindToggle(el.btnToggleTrace, 'showTrace');
+      bindToggle(el.btnToggleLabels, 'showLabels');
+
+      el.btnClearTrace.addEventListener('click', () => {
+        state.trace = [];
+      });
+
+      // Canvas Pointer & Wheel Interaction (Direct Crank Dragging + Pan + Zoom)
+      function getCanvasPoint(e) {
+        const rect = el.canvas.getBoundingClientRect();
+        return {
+          x: e.clientX - rect.left,
+          y: e.clientY - rect.top
+        };
+      }
+
+      function isNearP(sx, sy) {
+        const geom = evaluateLinkage(state.L, state.s, state.r, state.phi);
+        if (!geom.valid) return false;
+        const sP = w2s(geom.P.x, geom.P.y);
+        return Math.hypot(sx - sP.x, sy - sP.y) <= 28;
+      }
+
+      el.canvas.addEventListener('pointerdown', (e) => {
+        el.canvas.setPointerCapture(e.pointerId);
+        const pt = getCanvasPoint(e);
+        state.lastPointerX = pt.x;
+        state.lastPointerY = pt.y;
+
+        if (e.button === 0 && isNearP(pt.x, pt.y)) {
+          state.draggingMode = 'crank';
+          state.playing = false;
+          el.canvas.style.cursor = 'grabbing';
+        } else {
+          state.draggingMode = 'pan';
+          el.canvas.style.cursor = 'grabbing';
+        }
+      });
+
+      el.canvas.addEventListener('pointermove', (e) => {
+        const pt = getCanvasPoint(e);
+        const wPt = s2w(pt.x, pt.y);
+        state.hoverWorld = wPt;
+        updateCursorHud();
+
+        if (state.draggingMode === 'crank') {
+          const geom = evaluateLinkage(state.L, state.s, state.r, state.phi);
+          if (geom.valid) {
+            let angle = Math.atan2(wPt.y, wPt.x - state.r);
+            angle = Math.max(-geom.phiMax, Math.min(geom.phiMax, angle));
+            state.phi = angle;
+            updateUI(evaluateLinkage(state.L, state.s, state.r, state.phi));
+          }
+          return;
+        }
+
+        if (state.draggingMode === 'pan') {
+          state.panX += pt.x - state.lastPointerX;
+          state.panY += pt.y - state.lastPointerY;
+          state.lastPointerX = pt.x;
+          state.lastPointerY = pt.y;
+          return;
+        }
+
+        state.hoverNearP = isNearP(pt.x, pt.y);
+        el.canvas.style.cursor = state.hoverNearP ? 'grab' : 'crosshair';
+      });
+
+      function endPointer(e) {
+        if (state.draggingMode) {
+          state.draggingMode = null;
+          el.canvas.style.cursor = state.hoverNearP ? 'grab' : 'crosshair';
+          try { el.canvas.releasePointerCapture(e.pointerId); } catch (_) {}
+        }
+      }
+      el.canvas.addEventListener('pointerup', endPointer);
+      el.canvas.addEventListener('pointercancel', endPointer);
+
+      el.canvas.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const pt = getCanvasPoint(e);
+        const factor = e.deltaY < 0 ? 1.12 : 0.89;
+        zoomAt(factor, pt.x, pt.y);
+        updateCursorHud();
+      }, { passive: false });
+
+      // SVG Export Controls
+      el.svgScale.addEventListener('input', () => {
+        const val = parseFloat(el.svgScale.value);
+        if (Number.isFinite(val) && val > 0) state.svgScale = val;
+        updateSvgScaleHint();
+      });
+
+      function openSvgModal() {
+        const res = generateCutSheetSVG();
+        el.svgSummaryText.textContent = `全8パーツ（L: ${res.L_mm.toFixed(2)}mm ×2本 / s: ${res.s_mm.toFixed(2)}mm ×4本 / r: ${res.r_mm.toFixed(2)}mm ×1本 / 固定ベース ×1枚）· ピン穴径 Ø${res.holeDia.toFixed(1)}mm · リンク幅 ${res.linkW.toFixed(1)}mm · シートサイズ ${res.totalW.toFixed(1)} × ${res.totalH.toFixed(1)} mm`;
+        el.svgPreviewContainer.innerHTML = res.svgStr;
+        el.svgModal.classList.add('is-open');
+      }
+
+      function closeSvgModal() {
+        el.svgModal.classList.remove('is-open');
+      }
+
+      el.btnPreviewSvg.addEventListener('click', openSvgModal);
+      el.btnOpenSvgModal.addEventListener('click', openSvgModal);
+      el.btnCloseSvgModal.addEventListener('click', closeSvgModal);
+      el.svgModal.addEventListener('click', (e) => {
+        if (e.target === el.svgModal) closeSvgModal();
+      });
+
+      function handleSvgDownload() {
+        const res = generateCutSheetSVG();
+        downloadFile('peaucellier-lipkin-parts.svg', res.svgStr, 'image/svg+xml;charset=utf-8');
+      }
+      el.btnDownloadSvg.addEventListener('click', handleSvgDownload);
+      el.btnModalDownloadSvg.addEventListener('click', handleSvgDownload);
+
+      // Single-File HTML Download (strips any dev-server script tags if served via Vite)
+      el.btnDownloadHtml.addEventListener('click', () => {
+        const clone = document.documentElement.cloneNode(true);
+        const modal = clone.querySelector('#svgModal');
+        if (modal) modal.classList.remove('is-open');
+        const preview = clone.querySelector('#svgPreviewContainer');
+        if (preview) preview.innerHTML = '';
+        clone.querySelectorAll('script[src*="/@vite"]').forEach(s => s.remove());
+        const htmlContent = '<!doctype html>\n' + clone.outerHTML;
+        downloadFile('peaucellier-lipkin-simulator.html', htmlContent, 'text/html;charset=utf-8');
+      });
+
+      // Resize observer for crisp canvas & auto-fit on first mount
+      let resizeInitialized = false;
+      const ro = new ResizeObserver(() => {
+        if (!resizeInitialized) {
+          resizeInitialized = true;
+          autoFit();
+        }
+        renderCanvas(evaluateLinkage(state.L, state.s, state.r, state.phi));
+      });
+      ro.observe(el.canvasWrap);
+
+      // =========================================================================
+      // Main Animation Loop
+      // =========================================================================
+      let lastTs = performance.now();
+      function tick(now) {
+        const dt = Math.min(0.05, (now - lastTs) / 1000);
+        lastTs = now;
+
+        const geom = evaluateLinkage(state.L, state.s, state.r, state.phi);
+
+        if (state.playing && geom.valid) {
+          const angularVel = 1.15 * state.speed; // rad/s
+          let nextPhi = state.phi + state.direction * angularVel * dt;
+          if (nextPhi >= geom.phiMax) {
+            nextPhi = geom.phiMax;
+            state.direction = -1;
+          } else if (nextPhi <= -geom.phiMax) {
+            nextPhi = -geom.phiMax;
+            state.direction = 1;
+          }
+          state.phi = nextPhi;
+          const updated = evaluateLinkage(state.L, state.s, state.r, state.phi);
+          updateUI(updated);
+          renderCanvas(updated);
+        } else {
+          renderCanvas(geom);
+        }
+
+        requestAnimationFrame(tick);
+      }
+
+      // Initialize
+      setMode('manual');
+      applyPreset('standard');
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>
